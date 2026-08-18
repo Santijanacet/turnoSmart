@@ -1,0 +1,459 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id                   String                 @id @default(uuid())
+  name                 String
+  slug                 String                 @unique
+  logoUrl              String?
+  primaryColor         String?
+  secondaryColor       String?
+  active               Boolean                @default(true)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  users                User[]
+  departments          Department[]
+  employeeTypes        EmployeeType[]
+  employees            Employee[]
+  competencies         Competency[]
+  availability         Availability[]
+  constraints          Constraint[]
+  shiftTypes           ShiftType[]
+  personnelNeeds       PersonnelNeed[]
+  shifts               Shift[]
+  schedules            Schedule[]
+  shiftAssignments     ShiftAssignment[]
+  shiftRequests        ShiftRequest[]
+  shiftRequestEvidence ShiftRequestEvidence[]
+  shiftProposals       ShiftProposal[]
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+  roles                CustomRole[]
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  phone         String?
+  role          RoleType       @default(EMPLOYEE)
+  userStatus    UserStatus     @default(PENDING)
+  active        Boolean        @default(true)
+  tenantId      String
+  lastLogin     DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  employee      Employee?
+  notifications Notification[]
+  auditLogs     AuditLog[]
+}
+
+model Department {
+  id                  String               @id @default(uuid())
+  name                String
+  code                String
+  tenantId            String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  employees           Employee[]
+  employeeDepartments EmployeeDepartment[]
+  personnelNeeds      PersonnelNeed[]
+  shiftProposals      ShiftProposal[]
+  shifts              Shift[]
+
+  @@unique([tenantId, code])
+}
+
+model EmployeeType {
+  id          String     @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
+  employees   Employee[]
+
+  @@unique([tenantId, name])
+}
+
+model Employee {
+  id               String               @id @default(uuid())
+  userId           String               @unique
+  tenantId         String
+  departmentId     String?
+  employeeTypeId   String?
+  position         String?
+  dni              String?
+  contractType     String?
+  hireDate         DateTime?
+  hoursPerWeek     Float?
+  active           Boolean              @default(true)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  user             User                 @relation(fields: [userId], references: [id])
+  tenant           Tenant               @relation(fields: [tenantId], references: [id])
+  department       Department?          @relation(fields: [departmentId], references: [id])
+  employeeType     EmployeeType?        @relation(fields: [employeeTypeId], references: [id])
+  departments      EmployeeDepartment[]
+  competencies     EmployeeCompetency[]
+  availability     Availability[]
+  constraints      Constraint[]
+  schedules        Schedule[]
+  shiftAssignments ShiftAssignment[]
+  shiftRequests    ShiftRequest[]
+  proposedRequests ShiftRequest[]       @relation("ProposedReplacement")
+}
+
+model EmployeeDepartment {
+  id           String     @id @default(uuid())
+  employeeId   String
+  departmentId String
+  isPrimary    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  employee     Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, departmentId])
+}
+
+model Competency {
+  id          String               @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  active      Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  tenant      Tenant               @relation(fields: [tenantId], references: [id])
+  employees   EmployeeCompetency[]
+
+  @@unique([tenantId, name])
+}
+
+model EmployeeCompetency {
+  id                String     @id @default(uuid())
+  employeeId        String
+  competencyId      String
+  certificationDate DateTime?
+  expirationDate    DateTime?
+  createdAt         DateTime   @default(now())
+  employee          Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  competency        Competency @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, competencyId])
+}
+
+model Availability {
+  id          String    @id @default(uuid())
+  tenantId    String
+  employeeId  String
+  dayOfWeek   Int
+  shiftTypeId String
+  available   Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shiftType   ShiftType @relation(fields: [shiftTypeId], references: [id])
+
+  @@unique([employeeId, dayOfWeek, shiftTypeId])
+}
+
+model Constraint {
+  id                 String         @id @default(uuid())
+  tenantId           String
+  employeeId         String?
+  name               String
+  type               ConstraintType
+  description        String?
+  startDate          DateTime?
+  endDate            DateTime?
+  maxHours           Float?
+  minRest            Int?
+  maxConsecutiveDays Int?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  tenant             Tenant         @relation(fields: [tenantId], references: [id])
+  employee           Employee?      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model ShiftType {
+  id             String          @id @default(uuid())
+  tenantId       String
+  name           String
+  code           String
+  startTime      String
+  endTime        String
+  duration       Float
+  color          String?
+  nightShift     Boolean         @default(false)
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  availability   Availability[]
+  personnelNeeds PersonnelNeed[]
+
+  @@unique([tenantId, code])
+}
+
+model PersonnelNeed {
+  id            String     @id @default(uuid())
+  tenantId      String
+  departmentId  String
+  shiftTypeId   String
+  dayOfWeek     Int
+  requiredCount Int
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  tenant        Tenant     @relation(fields: [tenantId], references: [id])
+  department    Department @relation(fields: [departmentId], references: [id])
+  shiftType     ShiftType  @relation(fields: [shiftTypeId], references: [id])
+
+  @@unique([departmentId, shiftTypeId, dayOfWeek])
+}
+
+model Shift {
+  id           String            @id @default(uuid())
+  tenantId     String
+  departmentId String?
+  date         DateTime
+  startDate    DateTime
+  endDate      DateTime
+  startTime    String
+  endTime      String
+  status       ShiftStatus       @default(DRAFT)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+  department   Department?       @relation(fields: [departmentId], references: [id])
+  assignments  ShiftAssignment[]
+}
+
+model ShiftAssignment {
+  id         String           @id @default(uuid())
+  tenantId   String
+  shiftId    String
+  employeeId String
+  status     AssignmentStatus @default(ASSIGNED)
+  assignedBy String?
+  assignedAt DateTime         @default(now())
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  tenant     Tenant           @relation(fields: [tenantId], references: [id])
+  shift      Shift            @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  employee   Employee         @relation(fields: [employeeId], references: [id])
+  requests   ShiftRequest[]
+
+  @@unique([shiftId, employeeId])
+}
+
+model Schedule {
+  id          String         @id @default(uuid())
+  tenantId    String
+  employeeId  String
+  startDate   DateTime
+  endDate     DateTime
+  status      ScheduleStatus @default(DRAFT)
+  generatedAt DateTime?
+  publishedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+  employee    Employee       @relation(fields: [employeeId], references: [id])
+}
+
+model ShiftRequest {
+  id                    String                 @id @default(uuid())
+  tenantId              String
+  shiftAssignmentId     String?
+  employeeId            String
+  requestedDate         DateTime
+  reason                String
+  proposedReplacementId String?
+  status                RequestStatus          @default(PENDING)
+  reviewedBy            String?
+  reviewedAt            DateTime?
+  rejectionReason       String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id])
+  shiftAssignment       ShiftAssignment?       @relation(fields: [shiftAssignmentId], references: [id], onDelete: Cascade)
+  employee              Employee               @relation(fields: [employeeId], references: [id])
+  proposedReplacement   Employee?              @relation("ProposedReplacement", fields: [proposedReplacementId], references: [id])
+  evidence              ShiftRequestEvidence[]
+}
+
+model ShiftRequestEvidence {
+  id             String       @id @default(uuid())
+  tenantId       String
+  shiftRequestId String
+  fileName       String
+  fileUrl        String
+  fileType       String
+  fileSize       Int
+  createdAt      DateTime     @default(now())
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  shiftRequest   ShiftRequest @relation(fields: [shiftRequestId], references: [id], onDelete: Cascade)
+}
+
+model ShiftProposal {
+  id              String         @id @default(uuid())
+  tenantId        String
+  departmentId    String?
+  startDate       DateTime
+  endDate         DateTime
+  coverage        Float
+  requiredCount   Int
+  assignedCount   Int
+  unassignedCount Int
+  conflictCount   Int
+  status          ProposalStatus @default(DRAFT)
+  generatedAt     DateTime       @default(now())
+  approvedAt      DateTime?
+  approvedBy      String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  department      Department?    @relation(fields: [departmentId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String?
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String?
+  action    String
+  entity    String
+  details   String?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model CustomRole {
+  id          String           @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  permissions RolePermission[]
+
+  @@unique([tenantId, name])
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  permissions RolePermission[]
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
+  permissionId String
+  role         CustomRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+enum RoleType {
+  ADMIN
+  EMPLOYEE
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  BLOCKED
+  SUSPENDED
+}
+
+enum ConstraintType {
+  UNAVAILABLE
+  MAX_HOURS
+  MIN_REST
+  MAX_CONSECUTIVE_DAYS
+  VACATION
+  LEAVE
+  INCOMPATIBLE_SHIFT
+  REQUIRED_COMPETENCY
+}
+
+enum ShiftStatus {
+  DRAFT
+  PROPOSED
+  APPROVED
+  PUBLISHED
+  IN_PROGRESS
+  COMPLETED
+  MODIFIED
+  REASSIGNED
+  CANCELLED
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  PROPOSED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  REASSIGNED
+}
+
+enum ScheduleStatus {
+  DRAFT
+  PROPOSED
+  APPROVED
+  PUBLISHED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum RequestStatus {
+  PENDING
+  REVIEWING
+  APPROVED
+  REJECTED
+  CHANGE_APPLIED
+  CANCELLED
+  RETURNED
+}
+
+enum ProposalStatus {
+  DRAFT
+  VALIDATING
+  READY_FOR_REVIEW
+  APPROVED
+  PUBLISHED
+  CANCELLED
+}
