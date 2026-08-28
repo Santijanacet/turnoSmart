@@ -14,6 +14,7 @@ import { RolesModule } from './modules/roles/roles.module';
 import { ShiftTypesModule } from './modules/shift-types/shift-types.module';
 import { AvailabilityModule } from './modules/availability/availability.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { AssignmentEngineModule } from './modules/assignment-engine/assignment-engine.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     ShiftTypesModule,
     AvailabilityModule,
     DashboardModule,
+    AssignmentEngineModule,
   ],
 })
 export class AppModule {}

@@ -1,0 +1,712 @@
+====================================================================
+TURNOSMART - DOCUMENTACION TECNICA Y GUIA DE EXPOSICION
+====================================================================
+
+Version del documento: 1.0
+Fecha: agosto de 2026
+Proyecto: TurnoSmart Node Edition
+Tipo de sistema: plataforma web para la gestion de turnos hospitalarios
+
+
+1. RESUMEN DEL PROYECTO
+-----------------------
+
+TurnoSmart es una aplicacion web para organizar la operacion del personal de
+un hospital o institucion con trabajo por turnos. El sistema centraliza la
+informacion de usuarios, empleados, departamentos, tipos de empleado,
+tipos de turno, disponibilidad, horarios, asignaciones y solicitudes de
+cambio o reemplazo.
+
+El problema que resuelve es la gestion manual de turnos. Cuando los turnos se
+administran con hojas de calculo, mensajes o documentos separados, es facil
+cometer errores, duplicar asignaciones, olvidar solicitudes o perder visibilidad
+sobre la cobertura de cada area. TurnoSmart convierte esa informacion en un
+sistema organizado, consultable y controlado por permisos.
+
+La idea principal es que cada usuario pueda acceder a la informacion que le
+corresponde y que los responsables de la institucion puedan administrar la
+operacion desde un solo lugar.
+
+
+2. OBJETIVOS
+------------
+
+Objetivo general:
+Crear una plataforma web que permita administrar y consultar la planificacion
+de personal y turnos de una institucion de forma centralizada.
+
+Objetivos especificos:
+
+- Registrar usuarios y empleados.
+- Organizar empleados por departamentos y tipos de cargo.
+- Definir los tipos de turno, por ejemplo manana, tarde y noche.
+- Crear turnos para fechas y horarios concretos.
+- Asignar empleados a turnos.
+- Consultar horarios y programaciones.
+- Registrar disponibilidad y restricciones del personal.
+- Permitir solicitudes de cambio o reemplazo.
+- Aprobar o rechazar solicitudes.
+- Mostrar notificaciones y datos de seguimiento.
+- Separar la informacion de cada institucion mediante tenants.
+- Proteger el acceso utilizando autenticacion y roles.
+
+
+3. USUARIOS DEL SISTEMA
+-----------------------
+
+El sistema contempla principalmente estos perfiles:
+
+ADMIN:
+Administra la institucion, usuarios, departamentos, configuraciones y
+operacion general.
+
+MANAGER:
+Puede representar a un coordinador o responsable de la planificacion.
+Su funcion es consultar y organizar turnos, empleados y solicitudes.
+
+EMPLOYEE:
+Consulta su informacion, horarios, turnos asignados y solicitudes.
+
+La aplicacion utiliza el campo role del usuario para diferenciar permisos y
+responsabilidades. La estructura permite ampliar los roles y tambien incluye
+modulos para roles personalizados.
+
+
+4. ARQUITECTURA GENERAL
+-----------------------
+
+TurnoSmart esta construido con una arquitectura de tres capas principales:
+
++---------------------------------------------------------------+
+| FRONTEND - React + Vite                                      |
+| Interfaz, formularios, rutas, dashboard y consumo de API     |
++-----------------------------+---------------------------------+
+                              |
+                              | HTTP / JSON
+                              | Authorization: Bearer JWT
+                              v
++---------------------------------------------------------------+
+| BACKEND - NestJS                                             |
+| Controladores, servicios, autenticacion y reglas de negocio  |
++-----------------------------+---------------------------------+
+                              |
+                              | Prisma ORM
+                              v
++---------------------------------------------------------------+
+| BASE DE DATOS - PostgreSQL                                   |
+| Usuarios, empleados, turnos, solicitudes y relaciones        |
++---------------------------------------------------------------+
+
+Explicacion sencilla:
+
+1. El usuario interactua con el frontend desde el navegador.
+2. El frontend envia una peticion HTTP al backend.
+3. El backend valida la peticion y ejecuta la logica de negocio.
+4. Prisma traduce las operaciones a consultas para PostgreSQL.
+5. La respuesta regresa al frontend en formato JSON.
+6. La interfaz actualiza la pantalla con los datos recibidos.
+
+Esta separacion permite que la interfaz, la logica y los datos evolucionen de
+manera independiente.
+
+
+5. TECNOLOGIAS UTILIZADAS Y POR QUE
+------------------------------------
+
+5.1 TypeScript
+
+Se utiliza tanto en frontend como en backend.
+
+Por que se eligio:
+- Agrega tipos a JavaScript.
+- Detecta errores durante el desarrollo.
+- Facilita mantener un proyecto grande.
+- Hace mas claras las estructuras de usuarios, turnos y respuestas de API.
+- Permite reutilizar conocimientos y convenciones en todo el proyecto.
+
+5.2 React 18
+
+Se utiliza para construir la interfaz de usuario.
+
+Por que se eligio:
+- Permite dividir la interfaz en componentes.
+- Actualiza la pantalla cuando cambia el estado de la aplicacion.
+- Es adecuado para dashboards, formularios y vistas con datos dinamicos.
+- Tiene un ecosistema amplio y facilita ampliar el proyecto.
+
+En App.tsx se encuentran, entre otras, las vistas de inicio, inicio de sesion
+y el shell principal de la aplicacion. El estado se administra con hooks como
+useState y useEffect.
+
+5.3 Vite
+
+Se utiliza como herramienta de desarrollo y compilacion del frontend.
+
+Por que se eligio:
+- Inicia el servidor de desarrollo rapidamente.
+- Tiene recarga automatica al cambiar el codigo.
+- Genera una compilacion optimizada para produccion.
+- Es mas ligero y directo que herramientas antiguas de configuracion.
+
+Comandos principales del frontend:
+- npm run dev: servidor de desarrollo.
+- npm run build: compilacion de produccion.
+- npm run preview: vista previa de la compilacion.
+- npm test: ejecucion de pruebas configuradas.
+
+5.4 React Router
+
+Se utiliza para navegar entre las pantallas del frontend sin recargar toda la
+pagina. La aplicacion define rutas como la pagina inicial, login y las vistas
+internas del panel.
+
+5.5 Lucide React
+
+Se utiliza para los iconos de la interfaz, por ejemplo calendario, usuarios,
+notificaciones y panel de control. Esto da una interfaz mas comprensible sin
+tener que dibujar iconos manualmente.
+
+5.6 NestJS
+
+Se utiliza para construir la API backend.
+
+Por que se eligio:
+- Tiene una arquitectura modular.
+- Organiza el codigo en modulos, controladores y servicios.
+- Facilita separar responsabilidades.
+- Integra bien TypeScript, validacion, autenticacion y documentacion.
+- Es adecuado para APIs mantenibles y ampliables.
+
+5.7 Node.js
+
+Es el entorno donde se ejecuta el backend de NestJS. Permite utilizar
+JavaScript y TypeScript en el servidor y trabajar con operaciones de red de
+forma eficiente.
+
+5.8 Prisma ORM
+
+Se utiliza como capa de acceso a datos entre NestJS y PostgreSQL.
+
+Por que se eligio:
+- El esquema de la base de datos se expresa en schema.prisma.
+- Genera un cliente tipado para consultar los modelos.
+- Ayuda a evitar errores en nombres y tipos de campos.
+- Incluye migraciones para versionar cambios de la base de datos.
+- Permite consultar relaciones entre entidades de forma clara.
+
+5.9 PostgreSQL
+
+Es la base de datos relacional del proyecto.
+
+Por que se eligio:
+- Es estable y de uso profesional.
+- Maneja bien relaciones entre muchas entidades.
+- Permite restricciones, claves unicas y consistencia de datos.
+- Es apropiada para informacion estructurada como empleados, turnos y
+  departamentos.
+
+5.10 JWT y Passport
+
+JWT se utiliza para autenticar al usuario. Al iniciar sesion correctamente,
+el backend genera un accessToken. El frontend lo envia en las siguientes
+peticiones mediante:
+
+Authorization: Bearer <token>
+
+Passport y passport-jwt permiten extraer y validar ese token. La estrategia
+JWT lee el usuario y el rol incluidos en el token.
+
+5.11 bcryptjs
+
+Se utiliza para proteger las contrasenas. La aplicacion no guarda la
+contrasena original, sino un hash generado con bcrypt. Al iniciar sesion,
+compara la contrasena recibida con el hash almacenado.
+
+5.12 class-validator y ValidationPipe
+
+Se utilizan para validar los datos enviados al backend. La configuracion
+whitelist elimina propiedades no permitidas y forbidNonWhitelisted rechaza
+campos inesperados. Esto mejora la calidad y seguridad de las entradas.
+
+5.13 Swagger
+
+NestJS genera documentacion interactiva de la API en:
+
+http://localhost:3000/api/docs
+
+Esto permite consultar endpoints, parametros y respuestas desde el navegador.
+
+5.14 Tailwind CSS, PostCSS y CSS
+
+El frontend incluye Tailwind CSS, PostCSS y una hoja styles.css. Se usan para
+organizar el aspecto visual, los colores, el espaciado, los formularios, los
+botones y la adaptacion a diferentes tamanos de pantalla.
+
+
+6. ESTRUCTURA DE CARPETAS
+-------------------------
+
+turnosmart-node/
+|
++-- backend/
+|   +-- package.json              Dependencias y comandos del backend.
+|   +-- nest-cli.json             Configuracion de NestJS.
+|   +-- tsconfig.json             Configuracion de TypeScript.
+|   +-- .env.example              Variables de entorno de ejemplo.
+|   +-- prisma/
+|   |   +-- schema.prisma         Modelos y relaciones de la base de datos.
+|   |   +-- migrations/            Historial de cambios de la BD.
+|   +-- src/
+|       +-- main.ts               Punto de entrada del servidor.
+|       +-- app.module.ts         Modulo raiz.
+|       +-- prisma/               Conexion reutilizable a Prisma.
+|       +-- guards/               Proteccion y aislamiento por tenant.
+|       +-- decorators/           Decoradores auxiliares.
+|       +-- modules/              Funcionalidades del sistema.
+|
++-- frontend/
+    +-- package.json              Dependencias y comandos del frontend.
+    +-- index.html                Documento HTML base.
+    +-- vite.config.ts            Configuracion de Vite.
+    +-- tailwind.config.js        Configuracion de Tailwind.
+    +-- src/
+        +-- main.tsx              Punto de entrada de React.
+        +-- App.tsx               Rutas, vistas y consumo de API.
+        +-- styles.css            Estilos visuales.
+
+
+7. MODULOS DEL BACKEND
+----------------------
+
+Cada modulo separa una responsabilidad del sistema. Normalmente contiene un
+controller, un service y un module.
+
+Auth:
+Registro, inicio de sesion, hash de contrasenas y generacion de JWT.
+
+Users:
+Consulta y administracion de usuarios del sistema.
+
+Tenants:
+Gestion de instituciones o espacios independientes dentro de la plataforma.
+
+Employees:
+Informacion profesional de los empleados y su relacion con usuarios.
+
+Departments:
+Areas de trabajo como Urgencias, Hospitalizacion o Laboratorio.
+
+Employee Types:
+Tipos de empleados como medico, enfermero, auxiliar o tecnico.
+
+Shift Types:
+Configuracion de turnos: nombre, codigo, hora de inicio, hora de finalizacion,
+duracion, color y si es turno nocturno.
+
+Shifts:
+Creacion, consulta, actualizacion y asignacion de empleados a turnos.
+
+Schedules:
+Gestion de programaciones o periodos de trabajo.
+
+Requests:
+Solicitudes de los empleados, por ejemplo cambios o reemplazos. Se pueden
+crear y cambiar a estado APPROVED o REJECTED.
+
+Availability:
+Disponibilidad de un empleado segun el dia de la semana y el tipo de turno.
+
+Roles:
+Gestion de roles ampliables o personalizados.
+
+Dashboard:
+Datos resumidos para mostrar la situacion operativa.
+
+Prisma:
+Modulo que expone PrismaService para que los demas servicios consulten la
+base de datos sin duplicar la conexion.
+
+
+8. MODELO DE DATOS
+------------------
+
+El archivo backend/prisma/schema.prisma define un modelo relacional. Algunas
+entidades principales son:
+
+Tenant:
+Representa una institucion. Permite separar los datos de diferentes
+organizaciones.
+
+User:
+Cuenta de acceso. Tiene email unico, hash de contrasena, nombre, rol, estado y
+una relacion con Tenant.
+
+Employee:
+Informacion laboral vinculada a un User. Puede tener departamento, tipo de
+empleado, competencias, disponibilidad y restricciones.
+
+Department:
+Area de la institucion. Tiene nombre, codigo y pertenece a un Tenant.
+
+EmployeeType:
+Catalogo de cargos o tipos de empleado.
+
+ShiftType:
+Plantilla de turno, por ejemplo MANANA de 07:00 a 15:00.
+
+Shift:
+Turno concreto para una fecha, hora de inicio, hora de finalizacion y estado.
+
+ShiftAssignment:
+Relacion entre un turno y un empleado. Tiene una restriccion unica para
+impedir asignar dos veces al mismo empleado al mismo turno.
+
+Schedule:
+Periodo o programacion asignada a un empleado.
+
+ShiftRequest:
+Solicitud relacionada con un turno, un empleado y una posible sustitucion.
+
+Availability:
+Indica si un empleado esta disponible para un tipo de turno en un dia de la
+semana.
+
+Constraint:
+Reglas de trabajo como maximo de horas, descanso minimo o maximo de dias
+consecutivos.
+
+Notification:
+Mensajes dirigidos a usuarios.
+
+AuditLog:
+Registro de acciones importantes para trazabilidad.
+
+Las relaciones se protegen usando claves foraneas, identificadores UUID,
+campos unicos y eliminacion en cascada donde corresponde.
+
+
+9. MULTI-TENANCY: SEPARACION POR INSTITUCION
+---------------------------------------------
+
+El sistema utiliza el concepto de Tenant. Un tenant puede representar un
+hospital, clinica o empresa independiente.
+
+Muchas entidades tienen tenantId. Eso permite que los datos de una institucion
+no se mezclen con los de otra. Por ejemplo, dos hospitales pueden tener un
+departamento llamado Urgencias, pero cada registro pertenece a un tenant
+distinto.
+
+Este enfoque prepara la aplicacion para ser multiempresa o multiinstitucion.
+La proteccion por tenant se complementa con TenantGuard y el decorador
+GetTenant.
+
+
+10. FLUJO DE AUTENTICACION
+--------------------------
+
+1. El usuario escribe email y contrasena en el formulario de login.
+2. React envia una peticion POST a /auth/login.
+3. AuthService busca el email en PostgreSQL mediante Prisma.
+4. bcrypt compara la contrasena con passwordHash.
+5. Si los datos son correctos, JwtService genera un accessToken.
+6. El backend devuelve el usuario y el token en JSON.
+7. React conserva la informacion del usuario en su estado.
+8. Las siguientes peticiones incluyen el token como Bearer.
+9. JwtStrategy valida el token y recupera userId, email y role.
+10. El usuario puede acceder a las operaciones permitidas.
+
+Si las credenciales son incorrectas o la cuenta esta inactiva, el backend
+responde con un error de autenticacion y el frontend lo muestra en pantalla.
+
+Usuario de demostracion creado por el seed inicial:
+- Email: admin@turnosmart.com
+- Contrasena: admin123
+
+En un entorno real esta contrasena debe cambiarse y las claves deben mantenerse
+fuera del codigo fuente.
+
+
+11. FLUJO DE UN TURNO
+---------------------
+
+1. El administrador define departamentos y tipos de empleados.
+2. Configura tipos de turno, por ejemplo manana, tarde y noche.
+3. Registra empleados y sus datos laborales.
+4. Define disponibilidad, necesidades de personal y restricciones.
+5. Crea un turno para una fecha y horario.
+6. Asigna uno o varios empleados.
+7. El empleado consulta su programacion.
+8. Si necesita un cambio, crea una solicitud.
+9. Un responsable consulta la solicitud.
+10. La solicitud se aprueba o se rechaza.
+11. El sistema puede mostrar notificaciones y conservar trazabilidad.
+
+
+12. PUNTOS DE ENTRADA DEL CODIGO
+---------------------------------
+
+Backend:
+
+backend/src/main.ts:
+Es el punto de entrada. Crea la aplicacion NestJS, activa CORS, configura
+ValidationPipe, registra Swagger, ejecuta datos iniciales y escucha en el
+puerto 3000.
+
+backend/src/app.module.ts:
+Es el modulo raiz. Importa ConfigModule, PrismaModule y todos los modulos de
+negocio.
+
+backend/src/modules/auth/auth.service.ts:
+Contiene la logica de registro y login. Tambien genera el JWT y utiliza bcrypt.
+
+backend/src/modules/auth/jwt.strategy.ts:
+Valida tokens enviados en la cabecera Authorization.
+
+backend/src/modules/shifts/shifts.controller.ts:
+Expone operaciones HTTP para consultar, crear, actualizar y asignar turnos.
+
+backend/src/modules/requests/requests.controller.ts:
+Expone operaciones para consultar, crear y aprobar o rechazar solicitudes.
+
+Frontend:
+
+frontend/src/main.tsx:
+Monta React en el elemento root y envuelve la aplicacion con BrowserRouter.
+
+frontend/src/App.tsx:
+Contiene la interfaz principal, las rutas, los tipos de datos, el login, el
+estado de la sesion y las peticiones HTTP al backend.
+
+frontend/src/styles.css:
+Contiene los estilos visuales de la aplicacion.
+
+
+13. EJEMPLO DE COMUNICACION FRONTEND-BACKEND
+--------------------------------------------
+
+El frontend usa una funcion apiFetch generica. Esta funcion:
+
+- Construye la URL usando http://localhost:3000.
+- Agrega Content-Type: application/json.
+- Agrega Authorization cuando existe un token.
+- Convierte la respuesta a JSON.
+- Convierte errores HTTP en mensajes entendibles para la interfaz.
+
+Ejemplo conceptual:
+
+Frontend -> GET /shifts
+          Authorization: Bearer token
+
+Backend  -> ShiftsController.findAll()
+          ShiftsService.findAll()
+          Prisma shift.findMany()
+
+Base de datos -> devuelve registros de Shift
+
+Backend  -> responde JSON
+Frontend -> actualiza el listado de turnos
+
+
+14. CONFIGURACION Y EJECUCION
+-----------------------------
+
+Requisitos:
+- Node.js 20 o superior.
+- npm.
+- PostgreSQL, localmente o mediante Docker.
+- Docker y Docker Compose si se desea usar contenedores.
+
+Backend en Windows PowerShell:
+
+cd backend
+Copy-Item .env.example .env
+npm install
+npx prisma generate
+npx prisma migrate dev --name init
+npm run start:dev
+
+Frontend, en otra terminal:
+
+cd frontend
+npm install
+npm run dev
+
+Direcciones habituales:
+- Frontend: http://localhost:5173
+- Backend: http://localhost:3000
+- Swagger: http://localhost:3000/api/docs
+- PostgreSQL: localhost:5432
+
+Variables importantes del backend:
+
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/turnosmart?schema=public"
+JWT_SECRET="turnosmart-secret-key-change-me"
+JWT_EXPIRES_IN="15m"
+JWT_REFRESH_EXPIRES_IN="7d"
+PORT=3000
+NODE_ENV="development"
+
+Tambien existe una alternativa con Docker desde la raiz:
+
+docker compose up --build
+
+
+15. MIGRACIONES Y DATOS INICIALES
+---------------------------------
+
+Prisma Migrate guarda los cambios de la base de datos dentro de la carpeta
+backend/prisma/migrations. Esto permite versionar la estructura de la BD.
+
+Al arrancar, main.ts ejecuta ensureSeedData. Esta funcion crea o verifica:
+
+- El tenant TurnoSmart Admin.
+- El usuario administrador de demostracion.
+- Los departamentos Urgencias, Hospitalizacion y Laboratorio.
+- Tipos de empleado como Medico, Enfermero y Auxiliar.
+- Tipos de turno manana, tarde y noche.
+
+El uso de upsert hace que los datos base no se dupliquen cada vez que se inicia
+el servidor.
+
+
+16. VALIDACION, SEGURIDAD Y CALIDAD
+-----------------------------------
+
+- Las contrasenas se almacenan como hash, no como texto plano.
+- El acceso autenticado usa JWT.
+- CORS permite la comunicacion entre el frontend y el backend durante el
+desarrollo.
+- ValidationPipe filtra y valida entradas.
+- Los modelos usan UUID para identificar registros.
+- Los campos unicos evitan duplicados importantes.
+- Las relaciones de Prisma mantienen integridad referencial.
+- TenantGuard ayuda a restringir informacion a la institucion correcta.
+- AuditLog permite conservar informacion de acciones relevantes.
+- Swagger facilita probar y documentar los endpoints.
+
+Mejoras recomendables para produccion:
+
+- Usar un JWT_SECRET largo, aleatorio y guardado en un gestor de secretos.
+- Cambiar la contrasena de demostracion.
+- Aplicar guards de autenticacion y autorizacion a todos los endpoints que lo
+  necesiten.
+- Usar variables de entorno separadas por entorno.
+- Configurar CORS con una lista de dominios permitidos, no con cualquier origen.
+- Agregar pruebas unitarias y de integracion para cada modulo.
+- Aplicar rate limiting y registros de seguridad.
+- Incorporar refresh tokens si el flujo lo requiere.
+- Configurar copias de seguridad de PostgreSQL.
+
+
+17. COMO SE CONSTRUYO EL PROYECTO
+---------------------------------
+
+El desarrollo se puede explicar en estas etapas:
+
+Etapa 1: Analisis del problema
+Se identifico la necesidad de centralizar la gestion de personal y turnos.
+
+Etapa 2: Diseno del dominio
+Se definieron conceptos como usuario, empleado, departamento, turno,
+disponibilidad, restricciones y solicitudes.
+
+Etapa 3: Diseno de la base de datos
+Se crearon modelos relacionales en Prisma, claves foraneas, restricciones
+unicas y migraciones.
+
+Etapa 4: Construccion del backend
+Se creo la aplicacion NestJS, el modulo Prisma y los modulos de autenticacion,
+usuarios, empleados, turnos y solicitudes.
+
+Etapa 5: Seguridad
+Se implementaron bcrypt para contrasenas y JWT para sesiones autenticadas.
+
+Etapa 6: Construccion del frontend
+Se creo la interfaz React con Vite, rutas, formularios, dashboard y peticiones
+HTTP hacia la API.
+
+Etapa 7: Integracion
+Se conectaron los formularios y vistas del frontend con los endpoints del
+backend.
+
+Etapa 8: Datos iniciales
+Se agregaron datos seed para poder probar rapidamente la aplicacion.
+
+Etapa 9: Documentacion
+Se incorporo Swagger y se documentaron las instrucciones de ejecucion.
+
+
+18. GUION CORTO PARA EXPONER
+----------------------------
+
+"TurnoSmart es una plataforma web para gestionar turnos hospitalarios. La
+aplicacion separa el frontend, el backend y la base de datos. El frontend fue
+construido con React y Vite para ofrecer una interfaz dinamica y rapida. El
+backend usa NestJS porque proporciona una arquitectura modular en TypeScript.
+Prisma funciona como ORM y conecta el backend con PostgreSQL, que almacena la
+informacion de forma relacional y consistente.
+
+El usuario inicia sesion y recibe un token JWT. Ese token se envia en las
+peticiones posteriores para proteger el acceso. La aplicacion permite crear
+empleados, departamentos, tipos de turno y turnos concretos. Tambien permite
+asignar empleados, registrar disponibilidad, gestionar solicitudes y consultar
+la informacion desde un dashboard.
+
+La base de datos utiliza tenants para separar instituciones. Por eso el
+sistema puede crecer hacia un modelo multiempresa. El proyecto se organiza en
+modulos para que cada parte tenga una responsabilidad clara y pueda mantenerse
+sin afectar todo el sistema." 
+
+
+19. POSIBLES PREGUNTAS DE LOS PROFESORES
+----------------------------------------
+
+Pregunta: Por que no se conecto React directamente a PostgreSQL?
+Respuesta: Por seguridad y separacion de responsabilidades. El navegador no
+debe tener acceso directo a la base de datos. El backend controla validacion,
+permisos, reglas de negocio y consultas.
+
+Pregunta: Que ventaja tiene Prisma?
+Respuesta: Permite trabajar con la base de datos desde TypeScript, genera un
+cliente tipado y mantiene cambios de esquema mediante migraciones.
+
+Pregunta: Como se protegen las contrasenas?
+Respuesta: Se transforman con bcrypt y solo se guarda el hash.
+
+Pregunta: Como sabe el backend quien esta conectado?
+Respuesta: Valida el JWT enviado en la cabecera Authorization.
+
+Pregunta: Que pasa si dos empleados tienen el mismo turno?
+Respuesta: La relacion ShiftAssignment controla las asignaciones y contiene
+restricciones para evitar duplicaciones del mismo empleado en el mismo turno.
+
+Pregunta: Que significa tenant?
+Respuesta: Es una institucion independiente dentro de la plataforma. Sus datos
+se identifican con tenantId para evitar mezclarlos con los de otra institucion.
+
+Pregunta: Como se puede mejorar el sistema?
+Respuesta: Se pueden agregar algoritmos automaticos de generacion de turnos,
+notificaciones por correo, control de horas, reportes, pruebas automatizadas,
+refresh tokens y despliegue en la nube.
+
+
+20. CONCLUSION
+--------------
+
+TurnoSmart combina una interfaz web moderna, una API modular y una base de
+datos relacional para resolver un problema real de organizacion operativa.
+
+La tecnologia se eligio por razones concretas:
+- React y Vite para una interfaz rapida y mantenible.
+- NestJS y TypeScript para una API ordenada y escalable.
+- Prisma para trabajar con datos de forma tipada y versionada.
+- PostgreSQL para almacenar relaciones complejas con consistencia.
+- JWT, Passport y bcryptjs para autenticacion y proteccion de credenciales.
+
+La estructura actual permite presentar el proyecto como una solucion completa:
+no es solamente una pantalla, sino un sistema con modelo de datos, reglas de
+negocio, autenticacion, endpoints, interfaz y posibilidades de crecimiento.
+
+====================================================================
+FIN DE LA DOCUMENTACION
+====================================================================

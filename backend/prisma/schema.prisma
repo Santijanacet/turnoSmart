@@ -8,33 +8,35 @@ datasource db {
 }
 
 model Tenant {
-  id                   String                 @id @default(uuid())
-  name                 String
-  slug                 String                 @unique
-  logoUrl              String?
-  primaryColor         String?
-  secondaryColor       String?
-  active               Boolean                @default(true)
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
-  users                User[]
-  departments          Department[]
-  employeeTypes        EmployeeType[]
-  employees            Employee[]
-  competencies         Competency[]
-  availability         Availability[]
-  constraints          Constraint[]
-  shiftTypes           ShiftType[]
-  personnelNeeds       PersonnelNeed[]
-  shifts               Shift[]
-  schedules            Schedule[]
-  shiftAssignments     ShiftAssignment[]
-  shiftRequests        ShiftRequest[]
-  shiftRequestEvidence ShiftRequestEvidence[]
-  shiftProposals       ShiftProposal[]
-  notifications        Notification[]
-  auditLogs            AuditLog[]
-  roles                CustomRole[]
+  id                     String                  @id @default(uuid())
+  name                   String
+  slug                   String                  @unique
+  logoUrl                String?
+  primaryColor           String?
+  secondaryColor         String?
+  active                 Boolean                 @default(true)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  users                  User[]
+  departments            Department[]
+  employeeTypes          EmployeeType[]
+  employees              Employee[]
+  competencies           Competency[]
+  availability           Availability[]
+  constraints            Constraint[]
+  shiftTypes             ShiftType[]
+  personnelNeeds         PersonnelNeed[]
+  shifts                 Shift[]
+  schedules              Schedule[]
+  shiftAssignments       ShiftAssignment[]
+  shiftRequests          ShiftRequest[]
+  shiftRequestEvidence   ShiftRequestEvidence[]
+  shiftProposals         ShiftProposal[]
+  notifications          Notification[]
+  auditLogs              AuditLog[]
+  roles                  CustomRole[]
+  schedulingPolicy       SchedulingPolicy?
+  shiftStaffRequirements ShiftStaffRequirement[]
 }
 
 model User {
@@ -62,6 +64,7 @@ model Department {
   name                String
   code                String
   tenantId            String
+  maxStaff            Int?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   tenant              Tenant               @relation(fields: [tenantId], references: [id])
@@ -75,15 +78,16 @@ model Department {
 }
 
 model EmployeeType {
-  id          String     @id @default(uuid())
-  tenantId    String
-  name        String
-  description String?
-  active      Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  tenant      Tenant     @relation(fields: [tenantId], references: [id])
-  employees   Employee[]
+  id                    String                  @id @default(uuid())
+  tenantId              String
+  name                  String
+  description           String?
+  active                Boolean                 @default(true)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  tenant                Tenant                  @relation(fields: [tenantId], references: [id])
+  employees             Employee[]
+  ShiftStaffRequirement ShiftStaffRequirement[]
 
   @@unique([tenantId, name])
 }
@@ -205,6 +209,7 @@ model ShiftType {
   tenant         Tenant          @relation(fields: [tenantId], references: [id])
   availability   Availability[]
   personnelNeeds PersonnelNeed[]
+  shifts         Shift[]
 
   @@unique([tenantId, code])
 }
@@ -226,20 +231,53 @@ model PersonnelNeed {
 }
 
 model Shift {
-  id           String            @id @default(uuid())
-  tenantId     String
-  departmentId String?
-  date         DateTime
-  startDate    DateTime
-  endDate      DateTime
-  startTime    String
-  endTime      String
-  status       ShiftStatus       @default(DRAFT)
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  tenant       Tenant            @relation(fields: [tenantId], references: [id])
-  department   Department?       @relation(fields: [departmentId], references: [id])
-  assignments  ShiftAssignment[]
+  id                String                  @id @default(uuid())
+  tenantId          String
+  departmentId      String?
+  shiftTypeId       String?
+  date              DateTime
+  startDate         DateTime
+  endDate           DateTime
+  startTime         String
+  endTime           String
+  status            ShiftStatus             @default(DRAFT)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  tenant            Tenant                  @relation(fields: [tenantId], references: [id])
+  department        Department?             @relation(fields: [departmentId], references: [id])
+  shiftType         ShiftType?              @relation(fields: [shiftTypeId], references: [id])
+  assignments       ShiftAssignment[]
+  staffRequirements ShiftStaffRequirement[]
+}
+
+// Configuración de reglas de programación por institución (horas máximas, descanso mínimo, noches máximas)
+model SchedulingPolicy {
+  id                      String   @id @default(uuid())
+  tenantId                String   @unique
+  maxHoursPerDay          Float    @default(12)
+  maxHoursPerWeek         Float    @default(48)
+  minRestHours            Float    @default(12)
+  maxNightShiftsPerPeriod Int      @default(2)
+  nightShiftPeriodDays    Int      @default(7)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  tenant                  Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+// Personal requerido por tipo de empleado para un turno concreto (usado por el motor de asignación automática)
+model ShiftStaffRequirement {
+  id             String       @id @default(uuid())
+  tenantId       String
+  shiftId        String
+  employeeTypeId String
+  requiredCount  Int
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  shift          Shift        @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  employeeType   EmployeeType @relation(fields: [employeeTypeId], references: [id])
+
+  @@unique([shiftId, employeeTypeId])
 }
 
 model ShiftAssignment {

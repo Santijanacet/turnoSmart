@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 
 @Injectable()
@@ -52,5 +52,19 @@ export class DepartmentsService {
       return words.map((word) => word[0]).join('').slice(0, 4);
     }
     return normalized.replace(/\s/g, '').slice(0, 4) || 'DEP';
+  }
+
+  async updateMaxStaff(id: string, maxStaff: number | null) {
+    const department = await this.prisma.department.findUnique({ where: { id } });
+    if (!department) {
+      throw new NotFoundException('Departamento no encontrado');
+    }
+    if (maxStaff !== null && (Number.isNaN(Number(maxStaff)) || Number(maxStaff) <= 0)) {
+      throw new BadRequestException('El máximo de personal debe ser un número mayor a cero');
+    }
+    return this.prisma.department.update({
+      where: { id },
+      data: { maxStaff: maxStaff === null ? null : Number(maxStaff) },
+    });
   }
 }

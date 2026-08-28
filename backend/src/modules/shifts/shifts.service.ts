@@ -12,6 +12,7 @@ export class ShiftsService {
         id: true,
         tenantId: true,
         departmentId: true,
+        shiftTypeId: true,
         date: true,
         startDate: true,
         endDate: true,
@@ -21,12 +22,14 @@ export class ShiftsService {
         createdAt: true,
         updatedAt: true,
         department: true,
+        shiftType: true,
         assignments: {
           select: {
             employeeId: true,
             employee: {
               select: {
                 userId: true,
+                employeeTypeId: true,
                 user: { select: { id: true, firstName: true, lastName: true } },
               },
             },
@@ -44,6 +47,7 @@ export class ShiftsService {
         id: true,
         tenantId: true,
         departmentId: true,
+        shiftTypeId: true,
         date: true,
         startDate: true,
         endDate: true,
@@ -53,12 +57,14 @@ export class ShiftsService {
         createdAt: true,
         updatedAt: true,
         department: true,
+        shiftType: true,
         assignments: {
           select: {
             employeeId: true,
             employee: {
               select: {
                 userId: true,
+                employeeTypeId: true,
                 user: { select: { id: true, firstName: true, lastName: true } },
               },
             },
@@ -69,19 +75,28 @@ export class ShiftsService {
   }
 
   async create(data: any) {
-    if (!data.employeeId || !data.startDate || !data.endDate || !data.startTime || !data.endTime) {
-      throw new BadRequestException('Empleado, fechas y horas son obligatorios');
+    if (!data.startDate || !data.endDate || !data.startTime || !data.endTime) {
+      throw new BadRequestException('Fechas y horas son obligatorias');
     }
 
-    const employee = await this.prisma.employee.findUnique({
-      where: { id: data.employeeId },
-      include: { user: true },
-    });
-    if (!employee) {
-      throw new NotFoundException('Empleado no encontrado');
+    // El empleado es opcional: permite crear turnos "vacíos" que luego se cubren
+    // con el motor de asignación automática, definiendo requerimientos de personal.
+    let employee: any = null;
+    if (data.employeeId) {
+      employee = await this.prisma.employee.findUnique({
+        where: { id: data.employeeId },
+        include: { user: true },
+      });
+      if (!employee) {
+        throw new NotFoundException('Empleado no encontrado');
+      }
     }
 
-    const tenantId = employee.tenantId;
+    const tenantId = employee?.tenantId || data.tenantId;
+    if (!tenantId) {
+      throw new BadRequestException('El tenantId es obligatorio cuando no se indica un empleado');
+    }
+
     const startDate = new Date(data.startDate);
     const endDate = new Date(data.endDate);
     if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) {
@@ -93,32 +108,35 @@ export class ShiftsService {
         data: {
           tenantId,
           departmentId: data.departmentId || null,
+          shiftTypeId: data.shiftTypeId || null,
           date: startDate,
           startDate,
           endDate,
           startTime: data.startTime,
           endTime: data.endTime,
-          status: data.status || 'PUBLISHED',
+          status: data.status || (employee ? 'PUBLISHED' : 'DRAFT'),
         },
       });
 
-      await transaction.shiftAssignment.create({
-        data: {
-          tenantId,
-          shiftId: shift.id,
-          employeeId: employee.id,
-          assignedBy: data.assignedBy,
-        },
-      });
+      if (employee) {
+        await transaction.shiftAssignment.create({
+          data: {
+            tenantId,
+            shiftId: shift.id,
+            employeeId: employee.id,
+            assignedBy: data.assignedBy,
+          },
+        });
 
-      await transaction.notification.create({
-        data: {
-          tenantId,
-          userId: employee.userId,
-          title: 'Nuevo turno asignado',
-          message: `Se te asignó un turno del ${startDate.toLocaleDateString()} al ${endDate.toLocaleDateString()}, de ${data.startTime} a ${data.endTime}.`,
-        },
-      });
+        await transaction.notification.create({
+          data: {
+            tenantId,
+            userId: employee.userId,
+            title: 'Nuevo turno asignado',
+            message: `Se te asignó un turno del ${startDate.toLocaleDateString()} al ${endDate.toLocaleDateString()}, de ${data.startTime} a ${data.endTime}.`,
+          },
+        });
+      }
 
       return shift;
     });

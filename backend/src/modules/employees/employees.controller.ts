@@ -21,4 +21,9 @@ export class EmployeesController {
   async create(@Body() body: any) {
     return this.employeesService.create(body);
   }
+
+  @Post('import')
+  async importBulk(@Body() body: { tenantId: string; records: any[] }) {
+    return this.employeesService.importBulk(body?.tenantId, body?.records || []);
+  }
 }
