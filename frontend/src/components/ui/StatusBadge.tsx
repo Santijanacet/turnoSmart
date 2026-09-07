@@ -33,6 +33,18 @@ export function StatusBadge({ status }: { status: Status }) {
       borderColor = 'border-amber-200';
       label = status.toUpperCase() === 'PENDING' ? 'Pendiente' : 'Borrador';
       break;
+    case 'ADMIN':
+      bgColor = 'bg-purple-50';
+      textColor = 'text-purple-700';
+      borderColor = 'border-purple-200';
+      label = 'ADMIN';
+      break;
+    case 'EMPLOYEE':
+      bgColor = 'bg-blue-50';
+      textColor = 'text-blue-700';
+      borderColor = 'border-blue-200';
+      label = 'EMPLOYEE';
+      break;
     default:
       bgColor = 'bg-blue-50';
       textColor = 'text-blue-700';

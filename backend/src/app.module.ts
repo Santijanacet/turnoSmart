@@ -8,6 +8,7 @@ import { EmployeesModule } from './modules/employees/employees.module';
 import { DepartmentsModule } from './modules/departments/departments.module';
 import { EmployeeTypesModule } from './modules/employee-types/employee-types.module';
 import { ShiftsModule } from './modules/shifts/shifts.module';
+import { ShiftTemplatesModule } from './modules/shift-templates/shift-templates.module';
 import { SchedulesModule } from './modules/schedules/schedules.module';
 import { RequestsModule } from './modules/requests/requests.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -30,6 +31,7 @@ import { AssignmentEngineModule } from './modules/assignment-engine/assignment-e
     DepartmentsModule,
     EmployeeTypesModule,
     ShiftsModule,
+    ShiftTemplatesModule,
     SchedulesModule,
     RequestsModule,
     RolesModule,

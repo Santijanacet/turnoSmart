@@ -31,4 +31,14 @@ export class ShiftsController {
   async assign(@Param('id') id: string, @Body() body: any) {
     return this.shiftsService.assignEmployee(id, body.employeeId, body.assignedBy);
   }
+
+  @Patch(':id/cancel')
+  async cancel(@Param('id') id: string) {
+    return this.shiftsService.cancel(id);
+  }
+
+  @Patch(':id/unassign/:employeeId')
+  async unassign(@Param('id') id: string, @Param('employeeId') employeeId: string) {
+    return this.shiftsService.unassign(id, employeeId);
+  }
 }

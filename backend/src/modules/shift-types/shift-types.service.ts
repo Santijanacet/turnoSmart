@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 
 @Injectable()
@@ -30,7 +31,14 @@ export class ShiftTypesService {
     color?: string;
     nightShift?: boolean;
   }) {
-    return this.prisma.shiftType.create({ data });
+    try {
+      return await this.prisma.shiftType.create({ data });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Ya existe un tipo de turno con ese código');
+      }
+      throw error;
+    }
   }
 
   async update(id: string, data: Partial<{

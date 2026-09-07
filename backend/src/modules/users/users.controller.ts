@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -38,6 +39,12 @@ export class UsersController {
   @UseGuards(AuthGuard('jwt'))
   async update(@Param('id') id: string, @Body() body: any, @Req() request: any) {
     return this.usersService.update(id, body, request.user?.role);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'))
+  async remove(@Param('id') id: string, @Req() request: any) {
+    return this.usersService.softDelete(id, request.user?.role);
   }
 
   @Get(':id/notifications')

@@ -55,22 +55,35 @@ async function ensureSeedData() {
     });
   }
 
+  // Renombra el tipo "Enfermero" (nombre antiguo) al consolidado "Enfermero/a" si todavía existe.
+  await prisma.employeeType.updateMany({
+    where: { tenantId: tenant.id, name: 'Enfermero' },
+    data: { name: 'Enfermero/a' },
+  });
+
+  // requiresDepartmentMatch = true: solo elegible para turnos de su propia área
+  // (especialistas). false: se puede asignar a cualquier área (personal libre).
   const defaultTypes = [
-    'Médico',
-    'Enfermero',
-    'Auxiliar',
-    'Camillero',
-    'Personal administrativo',
-    'Técnico',
+    { name: 'Médico', requiresDepartmentMatch: true },
+    { name: 'Enfermero/a', requiresDepartmentMatch: false },
+    { name: 'Auxiliar', requiresDepartmentMatch: false },
+    { name: 'Camillero', requiresDepartmentMatch: false },
+    { name: 'Cirujano', requiresDepartmentMatch: true },
+    { name: 'Anestesiólogo', requiresDepartmentMatch: true },
+    { name: 'Esteticista', requiresDepartmentMatch: true },
+    { name: 'Técnico', requiresDepartmentMatch: false },
+    { name: 'Técnico de laboratorio', requiresDepartmentMatch: true },
+    { name: 'Personal administrativo', requiresDepartmentMatch: false },
   ];
 
-  for (const name of defaultTypes) {
+  for (const { name, requiresDepartmentMatch } of defaultTypes) {
     await prisma.employeeType.upsert({
       where: { tenantId_name: { tenantId: tenant.id, name } },
-      update: {},
+      update: { requiresDepartmentMatch },
       create: {
         tenantId: tenant.id,
         name,
+        requiresDepartmentMatch,
       },
     });
   }

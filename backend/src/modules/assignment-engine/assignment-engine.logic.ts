@@ -19,6 +19,8 @@ export interface EmployeeCandidate {
   name: string;
   active: boolean;
   employeeTypeId: string | null;
+  /** Si es false, el tipo de empleado es "libre" y puede asignarse a cualquier área (no se chequea certifiedDepartmentIds). */
+  requiresDepartmentMatch: boolean;
   /** Áreas donde el empleado está habilitado/certificado (departamento principal + adicionales). */
   certifiedDepartmentIds: string[];
   /** Áreas donde el empleado ya trabajó antes (para dar preferencia por experiencia previa). */
@@ -82,7 +84,7 @@ export function getEligibleEmployees(
       reasons.push('El empleado se encuentra inactivo.');
     }
 
-    if (shift.departmentId && !employee.certifiedDepartmentIds.includes(shift.departmentId)) {
+    if (shift.departmentId && employee.requiresDepartmentMatch && !employee.certifiedDepartmentIds.includes(shift.departmentId)) {
       reasons.push('El empleado no está habilitado/certificado para esta área.');
     }
 

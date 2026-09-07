@@ -4,7 +4,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { RoleType } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
+
+const ROLE_VALUES = new Set<string>(Object.values(RoleType));
+
+function normalizeRole(role: string): RoleType {
+  const normalized = role.trim().toUpperCase();
+  if (!ROLE_VALUES.has(normalized)) {
+    throw new BadRequestException(`El rol "${role}" no es válido. Debe ser ADMIN o EMPLOYEE.`);
+  }
+  return normalized as RoleType;
+}
 
 @Injectable()
 export class UsersService {
@@ -58,6 +69,7 @@ export class UsersService {
 
   async findAll() {
     return this.prisma.user.findMany({
+      where: { deletedAt: null },
       include: {
         tenant: true,
         employee: {
@@ -140,7 +152,7 @@ export class UsersService {
         firstName: data.firstName,
         lastName: data.lastName,
         phone: data.phone,
-        role: (data.role as any) || 'EMPLOYEE',
+        role: data.role ? normalizeRole(data.role) : 'EMPLOYEE',
         tenantId,
       },
       include: {
@@ -151,7 +163,7 @@ export class UsersService {
     const primaryDepartmentId = data.departmentId || data.departmentIds?.[0];
     const departmentIds = data.departmentIds ? [...data.departmentIds] : [];
 
-    if (primaryDepartmentId || departmentIds.length > 0) {
+    if (primaryDepartmentId || departmentIds.length > 0 || data.employeeTypeId) {
       const employee = await this.prisma.employee.create({
         data: {
           userId: user.id,
@@ -201,7 +213,7 @@ export class UsersService {
         lastName: data.lastName,
         email: data.email ? data.email.toLowerCase() : undefined,
         phone: data.phone,
-        role: data.role as any,
+        role: data.role !== undefined ? normalizeRole(data.role) : undefined,
         active: data.active,
         userStatus: data.active === undefined ? undefined : data.active ? 'ACTIVE' : 'SUSPENDED',
         passwordHash: data.password ? await bcrypt.hash(data.password, 10) : undefined,
@@ -238,6 +250,32 @@ export class UsersService {
     }
 
     return this.findOne(updatedUser.id);
+  }
+
+  /**
+   * Soft delete: no borra la fila físicamente porque Employee puede tener
+   * historial real en ShiftAssignment/Schedule/ShiftRequest (esas relaciones
+   * no tienen onDelete: Cascade hacia Employee, así que un hard delete
+   * fallaría o, peor, tendría éxito solo para cuentas sin historial). Marca
+   * deletedAt y desactiva la cuenta; findAll() ya filtra deletedAt: null.
+   */
+  async softDelete(id: string, requesterRole?: string) {
+    if (requesterRole !== 'ADMIN') {
+      throw new BadRequestException('Solo un administrador puede eliminar cuentas');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+    if (user.deletedAt) {
+      throw new BadRequestException('La cuenta ya fue eliminada');
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { deletedAt: new Date(), active: false },
+    });
   }
 
   async getNotifications(userId: string) {

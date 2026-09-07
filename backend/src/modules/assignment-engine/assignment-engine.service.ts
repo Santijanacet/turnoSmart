@@ -7,6 +7,7 @@ import {
   type ExistingShiftEntry,
   type ShiftToCover,
 } from './assignment-engine.logic';
+import { computeCoverageStatus } from './shift-coverage.logic';
 
 const MS_PER_HOUR = 1000 * 60 * 60;
 
@@ -20,7 +21,8 @@ type EligibilityReasonCode =
   | 'MAX_HOURS_WEEK'
   | 'MAX_NIGHT_SHIFTS'
   | 'NOT_AVAILABLE'
-  | 'DEPARTMENT_FULL';
+  | 'DEPARTMENT_FULL'
+  | 'DEPARTMENT_MISMATCH';
 
 export interface EligibilityResult {
   employeeId: string;
@@ -138,7 +140,42 @@ export class AssignmentEngineService {
       }
     });
 
+    await this.recomputeCoverage(shiftId);
     return this.getRequirements(shiftId);
+  }
+
+  // ---------------------------------------------------------------------
+  // Coverage status (Sin cubrir / Parcialmente cubierto / Cubierto)
+  // ---------------------------------------------------------------------
+
+  /**
+   * Recalcula y persiste Shift.coverageStatus a partir de los requerimientos
+   * y las asignaciones activas del turno. Se llama desde setRequirements(),
+   * autoAssign() y ShiftsService.assignEmployee() (asignación individual).
+   *
+   * NOTA: hoy no existe ningún endpoint para desasignar/cancelar una
+   * ShiftAssignment (shifts.controller.ts solo expone POST /shifts/:id/assign).
+   * Si en el futuro se cancela una asignación por una vía que no pase por un
+   * método que llame a recomputeCoverage(), coverageStatus quedará
+   * desactualizado hasta el próximo setRequirements/autoAssign/assignEmployee
+   * de ese turno.
+   */
+  async recomputeCoverage(shiftId: string) {
+    const shift = await this.loadShift(shiftId);
+    const requirements = await this.prisma.shiftStaffRequirement.findMany({ where: { shiftId } });
+
+    const withCounts = requirements.map((requirement) => ({
+      requiredCount: requirement.requiredCount,
+      assignedCount: shift.assignments.filter(
+        (assignment) => assignment.employee.employeeTypeId === requirement.employeeTypeId,
+      ).length,
+    }));
+
+    const coverageStatus = computeCoverageStatus(withCounts);
+
+    await this.prisma.shift.update({ where: { id: shiftId }, data: { coverageStatus } });
+
+    return coverageStatus;
   }
 
   // ---------------------------------------------------------------------
@@ -158,7 +195,7 @@ export class AssignmentEngineService {
 
     const employees = await this.prisma.employee.findMany({
       where: { tenantId: shift.tenantId, employeeTypeId: { in: requiredTypeIds } },
-      include: { user: true, employeeType: true, department: true, availability: true },
+      include: { user: true, employeeType: true, department: true, departments: true, availability: true },
     });
 
     const employeeIds = employees.map((employee) => employee.id);
@@ -240,6 +277,7 @@ export class AssignmentEngineService {
         name: `${employee.user?.firstName || ''} ${employee.user?.lastName || ''}`.trim() || 'Empleado',
         active: Boolean(employee.active && employee.user?.active !== false),
         employeeTypeId: employee.employeeTypeId,
+        requiresDepartmentMatch: employee.employeeType?.requiresDepartmentMatch ?? true,
         certifiedDepartmentIds: [...new Set(certifiedDepartmentIds)],
         pastDepartmentIds: [...new Set(pastDepartmentIds)],
       };
@@ -347,10 +385,11 @@ export class AssignmentEngineService {
     const totalRequired = perTypeSummary.reduce((sum, item) => sum + item.required, 0);
     const totalAssigned = perTypeSummary.reduce((sum, item) => sum + item.assigned, 0);
     const totalPending = perTypeSummary.reduce((sum, item) => sum + item.pending, 0);
+    const coverage = await this.recomputeCoverage(shiftId);
 
     return {
       shiftId,
-      coverage: totalPending === 0 ? 'COMPLETA' : 'INCOMPLETA',
+      coverage,
       totalRequired,
       totalAssigned,
       totalPending,
@@ -434,6 +473,17 @@ export class AssignmentEngineService {
     if (alreadyOnThisShift) {
       reasons.push('El empleado ya está asignado a este turno.');
       reasonCodes.push('ALREADY_ASSIGNED');
+    }
+
+    if (shift.departmentId && employee.employeeType?.requiresDepartmentMatch) {
+      const certifiedDepartmentIds: string[] = [
+        employee.departmentId,
+        ...((employee.departments as any[] | undefined)?.map((item) => item.departmentId) || []),
+      ].filter(Boolean);
+      if (!certifiedDepartmentIds.includes(shift.departmentId)) {
+        reasons.push('El empleado no está habilitado/certificado para esta área.');
+        reasonCodes.push('DEPARTMENT_MISMATCH');
+      }
     }
 
     let hasOverlap = false;
@@ -577,6 +627,8 @@ export class AssignmentEngineService {
         data: {
           tenantId: shift.tenantId,
           userId: employee.userId,
+          type: 'SHIFT_ASSIGNED',
+          shiftId: shift.id,
           title: 'Nuevo turno asignado automáticamente',
           message: `El motor de asignación automática te asignó un turno para el ${new Date(shift.date).toLocaleDateString()}.`,
         },

@@ -21,6 +21,7 @@ function makeEmployee(overrides: Partial<EmployeeCandidate> = {}): EmployeeCandi
     name: 'Juan Pérez',
     active: true,
     employeeTypeId: 'medico',
+    requiresDepartmentMatch: true,
     certifiedDepartmentIds: [DEPT],
     pastDepartmentIds: [],
     ...overrides,
@@ -51,6 +52,16 @@ describe('getEligibleEmployees', () => {
     );
     expect(result.eligible).toBe(false);
     expect(result.exclusionReasons).toContain('El empleado no está habilitado/certificado para esta área.');
+  });
+
+  it('no excluye por área a un tipo de empleado libre (requiresDepartmentMatch: false)', () => {
+    const [result] = getEligibleEmployees(
+      makeShift({ departmentId: OTHER_DEPT }),
+      [makeEmployee({ certifiedDepartmentIds: [DEPT], requiresDepartmentMatch: false })],
+      [],
+      rules,
+    );
+    expect(result.eligible).toBe(true);
   });
 
   it('excluye por solapamiento de horario', () => {

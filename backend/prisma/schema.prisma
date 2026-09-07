@@ -37,6 +37,8 @@ model Tenant {
   roles                  CustomRole[]
   schedulingPolicy       SchedulingPolicy?
   shiftStaffRequirements ShiftStaffRequirement[]
+  shiftTemplates         ShiftTemplate[]
+  shiftTemplateRequirements ShiftTemplateRequirement[]
 }
 
 model User {
@@ -49,6 +51,7 @@ model User {
   role          RoleType       @default(EMPLOYEE)
   userStatus    UserStatus     @default(PENDING)
   active        Boolean        @default(true)
+  deletedAt     DateTime?
   tenantId      String
   lastLogin     DateTime?
   createdAt     DateTime       @default(now())
@@ -73,51 +76,54 @@ model Department {
   personnelNeeds      PersonnelNeed[]
   shiftProposals      ShiftProposal[]
   shifts              Shift[]
+  shiftTemplates      ShiftTemplate[]
 
   @@unique([tenantId, code])
 }
 
 model EmployeeType {
-  id                    String                  @id @default(uuid())
-  tenantId              String
-  name                  String
-  description           String?
-  active                Boolean                 @default(true)
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  tenant                Tenant                  @relation(fields: [tenantId], references: [id])
-  employees             Employee[]
-  ShiftStaffRequirement ShiftStaffRequirement[]
+  id                        String                     @id @default(uuid())
+  tenantId                  String
+  name                      String
+  description               String?
+  active                    Boolean                    @default(true)
+  requiresDepartmentMatch   Boolean                    @default(true)
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  tenant                    Tenant                     @relation(fields: [tenantId], references: [id])
+  employees                 Employee[]
+  ShiftStaffRequirement     ShiftStaffRequirement[]
+  shiftTemplateRequirements ShiftTemplateRequirement[]
 
   @@unique([tenantId, name])
 }
 
 model Employee {
-  id               String               @id @default(uuid())
-  userId           String               @unique
-  tenantId         String
-  departmentId     String?
-  employeeTypeId   String?
-  position         String?
-  dni              String?
-  contractType     String?
-  hireDate         DateTime?
-  hoursPerWeek     Float?
-  active           Boolean              @default(true)
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  user             User                 @relation(fields: [userId], references: [id])
-  tenant           Tenant               @relation(fields: [tenantId], references: [id])
-  department       Department?          @relation(fields: [departmentId], references: [id])
-  employeeType     EmployeeType?        @relation(fields: [employeeTypeId], references: [id])
-  departments      EmployeeDepartment[]
-  competencies     EmployeeCompetency[]
-  availability     Availability[]
-  constraints      Constraint[]
-  schedules        Schedule[]
-  shiftAssignments ShiftAssignment[]
-  shiftRequests    ShiftRequest[]
-  proposedRequests ShiftRequest[]       @relation("ProposedReplacement")
+  id                 String               @id @default(uuid())
+  userId             String               @unique
+  tenantId           String
+  departmentId       String?
+  employeeTypeId     String?
+  position           String?
+  dni                String?
+  contractType       String?
+  hireDate           DateTime?
+  hoursPerWeek       Float?
+  active             Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  user               User                 @relation(fields: [userId], references: [id])
+  tenant             Tenant               @relation(fields: [tenantId], references: [id])
+  department         Department?          @relation(fields: [departmentId], references: [id])
+  employeeType       EmployeeType?        @relation(fields: [employeeTypeId], references: [id])
+  departments        EmployeeDepartment[]
+  competencies       EmployeeCompetency[]
+  availability       Availability[]
+  constraints        Constraint[]
+  schedules          Schedule[]
+  shiftAssignments   ShiftAssignment[]
+  shiftRequests      ShiftRequest[]
+  proposedRequests   ShiftRequest[]       @relation("ProposedReplacement")
 }
 
 model EmployeeDepartment {
@@ -210,6 +216,7 @@ model ShiftType {
   availability   Availability[]
   personnelNeeds PersonnelNeed[]
   shifts         Shift[]
+  shiftTemplates ShiftTemplate[]
 
   @@unique([tenantId, code])
 }
@@ -235,19 +242,23 @@ model Shift {
   tenantId          String
   departmentId      String?
   shiftTypeId       String?
+  shiftTemplateId   String?
   date              DateTime
   startDate         DateTime
   endDate           DateTime
   startTime         String
   endTime           String
   status            ShiftStatus             @default(DRAFT)
+  coverageStatus    ShiftCoverageStatus     @default(UNCOVERED)
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
   tenant            Tenant                  @relation(fields: [tenantId], references: [id])
   department        Department?             @relation(fields: [departmentId], references: [id])
   shiftType         ShiftType?              @relation(fields: [shiftTypeId], references: [id])
+  shiftTemplate     ShiftTemplate?          @relation(fields: [shiftTemplateId], references: [id])
   assignments       ShiftAssignment[]
   staffRequirements ShiftStaffRequirement[]
+  notifications     Notification[]
 }
 
 // Configuración de reglas de programación por institución (horas máximas, descanso mínimo, noches máximas)
@@ -265,6 +276,40 @@ model SchedulingPolicy {
 }
 
 // Personal requerido por tipo de empleado para un turno concreto (usado por el motor de asignación automática)
+// Plantilla de turno por área (ej. Cardiología → "Mañana" 08:00-16:00), configurada
+// una sola vez y usada por POST /shift-templates/generate para crear turnos reales.
+model ShiftTemplate {
+  id           String                     @id @default(uuid())
+  tenantId     String
+  departmentId String
+  shiftTypeId  String
+  active       Boolean                    @default(true)
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+  tenant       Tenant                     @relation(fields: [tenantId], references: [id])
+  department   Department                 @relation(fields: [departmentId], references: [id])
+  shiftType    ShiftType                  @relation(fields: [shiftTypeId], references: [id])
+  requirements ShiftTemplateRequirement[]
+  shifts       Shift[]
+
+  @@unique([departmentId, shiftTypeId])
+}
+
+model ShiftTemplateRequirement {
+  id              String        @id @default(uuid())
+  tenantId        String
+  shiftTemplateId String
+  employeeTypeId  String
+  requiredCount   Int
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
+  shiftTemplate   ShiftTemplate @relation(fields: [shiftTemplateId], references: [id], onDelete: Cascade)
+  employeeType    EmployeeType  @relation(fields: [employeeTypeId], references: [id])
+
+  @@unique([shiftTemplateId, employeeTypeId])
+}
+
 model ShiftStaffRequirement {
   id             String       @id @default(uuid())
   tenantId       String
@@ -372,12 +417,15 @@ model Notification {
   id        String   @id @default(uuid())
   tenantId  String
   userId    String?
+  type      String?
+  shiftId   String?
   title     String
   message   String
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   user      User?    @relation(fields: [userId], references: [id])
+  shift     Shift?   @relation(fields: [shiftId], references: [id])
 }
 
 model AuditLog {
@@ -494,4 +542,10 @@ enum ProposalStatus {
   APPROVED
   PUBLISHED
   CANCELLED
+}
+
+enum ShiftCoverageStatus {
+  UNCOVERED
+  PARTIALLY_COVERED
+  COVERED
 }

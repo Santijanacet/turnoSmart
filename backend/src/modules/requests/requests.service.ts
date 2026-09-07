@@ -91,6 +91,7 @@ export class RequestsService {
       data: {
         tenantId,
         userId: employee.userId,
+        type: 'REQUEST_SUBMITTED',
         title: 'Solicitud enviada',
         message: `Tu solicitud del ${new Date(data.requestedDate).toLocaleDateString()} quedó registrada y está pendiente de revisión.`,
       },
@@ -132,6 +133,7 @@ export class RequestsService {
       data: {
         tenantId: request.tenantId,
         userId: request.employee.userId,
+        type: status === 'APPROVED' ? 'REQUEST_APPROVED' : 'REQUEST_REJECTED',
         title: status === 'APPROVED' ? 'Solicitud aprobada' : 'Solicitud rechazada',
         message:
           status === 'APPROVED'

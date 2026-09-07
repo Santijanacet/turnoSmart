@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { EmployeeTypesService } from './employee-types.service';
 
@@ -15,5 +15,10 @@ export class EmployeeTypesController {
   @Post()
   async create(@Body() body: any) {
     return this.employeeTypesService.create(body);
+  }
+
+  @Patch(':id')
+  async update(@Param('id') id: string, @Body() body: any) {
+    return this.employeeTypesService.update(id, body);
   }
 }
