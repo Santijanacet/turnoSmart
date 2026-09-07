@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "TurnoSmart API - NestJS + PostgreSQL",
   "private": true,
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "_moduleAliases": {
     "@": "dist"
   },
@@ -20,7 +24,9 @@
     "test": "vitest run",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "setup": "npm run setup:env",
+    "setup:env": "node scripts/setup-env.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.29",
